@@ -18,17 +18,33 @@ VAF_OFA <- function(cluster_all, theme_option){
 }
 
 VAF_draw <- function(cluster_mt, theme_option){
+  picv <- ggplot(cluster_mt, aes(x = VAF)) + geom_line(size = 1, colour = "cadetblue3", stat = "density")
   VAF_draw_cha = paste("ggplot(cluster_mt, aes(x = VAF)) + 
     theme_bw()+theme(panel.grid=element_blank(),panel.border=element_blank(), axis.line=element_line(size=0.25)) + 
     geom_line(size = 1, colour = \"cadetblue3\", stat = \"density\") + geom_rug(aes(y = 0, colour = cluster), sides = \"b\") + ", 
+    VAF_vline(cluster_mt, picv),
     "scale_color_", theme_option, "() + scale_fill_", theme_option, "()", sep="")
   eval(parse(text = VAF_draw_cha))
+}
+
+# VAF draw vlines
+VAF_vline <- function(cluster_mt, pic){
+  VAF_vline_cha <- ""
+  cluster_ls <- unique(cluster_mt$cluster)
+  density_info <- data.frame(layer_data(pic))
+  for (cluster_name in cluster_ls){
+    x_end <- max(cluster_mt[which(cluster_mt$cluster == cluster_name)]$VAF)
+    x_end_alter <- density_info$x[which.min(abs(outer(density_info$x,x_end,FUN="-")))]
+    y_end <- density_info$y[which(density_info$x == x_end_alter)]
+    VAF_vline_cha <- paste(VAF_vline_cha, "geom_segment(aes(x = ", x_end_alter,", xend = ", x_end_alter, ", y = 0, yend = ", y_end,"), size = 0.3, colour=\"cadetblue3\", linetype=\"dashed\") + ",sep="")
+  }
+  VAF_vline_cha
 }
 
 # maftools Clusters(could not be used because of the specific position of the point)
 VAF_plot <-function(maf_file, sample_option = "OFA", theme_option = "aaas", file_format = "png"){
   # read .maf
-  maf_input <- read.table(maf_file, header = TRUE, fill = TRUE)
+  maf_input <- read.table(maf_file, header = TRUE, fill = TRUE, sep = '\t', quote = "")
   laml <- read.maf(maf=maf_file)
   samples <- data.frame(maf_input[,ncol(maf_input)])
   cluster_all <- data.frame()
