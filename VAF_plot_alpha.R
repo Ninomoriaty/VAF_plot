@@ -16,7 +16,7 @@ VAF_OFA <- function(cluster_all, theme_option, tsb_ls, sample_option){
     geom_density_ridges(color = \"cadetblue3\", fill = \"whitesmoke\", calc_ecdf = TRUE, alpha = 0.5) + ",
     VAF_vline_ofa(cluster_all, tsb_ls, sample_option), 
     "scale_color_", theme_option, "() + scale_fill_", theme_option, "()", sep="")
-  eval(parse(text = VAF_ofa_cha))
+  VAF_ofa_cha
 }
 
 VAF_draw <- function(cluster_mt, theme_option, sample_option){
@@ -30,20 +30,21 @@ VAF_draw <- function(cluster_mt, theme_option, sample_option){
 }
 
 # VAF draw vlines
-VAF_vline <- function(cluster_mt, pic, tsb_ls, sample_option, tsb){
+VAF_vline <- function(cluster_mt, pic, tsb_ls, sample_option, tsb, ingredients = NULL){
   VAF_vline_cha <- ""
   cluster_ls <- unique(cluster_mt$cluster)
   density_info <- data.frame(layer_data(pic))
-  ymin <- min(density_info$y)
-  gr <- ggplot(cluster_all, aes(x = VAF, y = Tumor_Sample_Barcode)) + geom_density_ridges(rel_min_height = 0.01) 
-  ingredients <- ggplot_build(gr) %>% purrr::pluck("data", 1)
-  density_lines <- ingredients %>% group_by(group) %>% filter(density == max(density)) %>% ungroup()
+  if (typeof(ingredients) == "list"){
+    iscale <- ingredients$iscale[1]
+    scale <- ingredients$scale[1]
+  }
   for (cluster_name in cluster_ls){
     x_end <- max(cluster_mt[which(cluster_mt$cluster == cluster_name)]$VAF)
     x_end_alter <- density_info$x[which.min(abs(outer(density_info$x,x_end,FUN="-")))]
     y_end <- density_info$y[which(density_info$x == x_end_alter)]
     if (sample_option == "OFA"){
-      VAF_vline_cha <- paste(VAF_vline_cha, "geom_segment(data = cluster_mt_", which(tsb_ls == tsb)," ,aes(x = ", x_end_alter,", xend = ", x_end_alter, ", y = ", which(tsb_ls == tsb),", yend = ", ymin+density*scale*iscale,"), size = 0.3, colour=\"cadetblue3\", linetype=\"dashed\") + ",sep="")
+      density <- density_info$density[which(density_info$x == x_end_alter)]
+      VAF_vline_cha <- paste(VAF_vline_cha, "geom_segment(data = cluster_mt_", which(tsb_ls == tsb)," ,aes(x = ", x_end_alter,", xend = ", x_end_alter, ", y = ", which(tsb_ls == tsb),", yend = ", which(tsb_ls == tsb) + y_end,"), size = 0.3, colour=\"cadetblue3\", linetype=\"dashed\") + ",sep="")
     }else{
       VAF_vline_cha <- paste(VAF_vline_cha, "geom_segment(aes(x = ", x_end_alter,", xend = ", x_end_alter, ", y = 0, yend = ", y_end,"), size = 0.3, colour=\"cadetblue3\", linetype=\"dashed\") + ",sep="")
     }
@@ -55,6 +56,8 @@ VAF_vline <- function(cluster_mt, pic, tsb_ls, sample_option, tsb){
 # VAF draw vlines for ofa
 VAF_vline_ofa <- function(cluster_all, tsb_ls, sample_option){
   VAF_vline_ofa <- ""
+  gr <- ggplot(cluster_all, aes(x = VAF, y = Tumor_Sample_Barcode)) + geom_density_ridges() 
+  ingredients <- ggplot_build(gr) %>% purrr::pluck("data", 1)
   for (tsb in tsb_ls$samples){
     VAF_vline_cha <- ""
     x_end_ls <- data.frame()
@@ -64,7 +67,7 @@ VAF_vline_ofa <- function(cluster_all, tsb_ls, sample_option){
     cluster_ls <- unique(cluster_mt$cluster)
     picv <- ggplot(cluster_mt, aes(x = VAF)) + geom_line(size = 1, colour = "cadetblue3", stat = "density")
     density_info <- data.frame(layer_data(picv))
-    VAF_vline_cha <- VAF_vline(cluster_mt, picv, tsb_ls, sample_option, tsb)
+    VAF_vline_cha <- VAF_vline(cluster_mt, picv, tsb_ls, sample_option, tsb, ingredients)
     VAF_vline_ofa <- paste(VAF_vline_ofa, VAF_vline_cha)
   }
   VAF_vline_ofa
@@ -101,7 +104,7 @@ VAF_plot <-function(maf_file, sample_option = "OFA", theme_option = "aaas", file
     for (counter_mt in 1:length(tsb_ls[,1])){
       for (sample_name_mt in tsb_ls){
         sample_mt <- vaf_input_mt[which(vaf_input_mt$Samples %in% as.character(sample_name_mt)[counter_mt]),]
-        cluster_mt_cha <- paste("cluster_mt_", counter_mt,"= inferHeterogeneity(maf = laml, tsb = as.character(sample_mt[1,3]), vafCol = \'VAF\', useSyn = TRUE)$\"clusterData\"", sep ="")
+        cluster_mt_cha <- paste("cluster_mt_", counter_mt," <- inferHeterogeneity(maf = laml, tsb = as.character(sample_mt[1,3]), vafCol = \'VAF\', useSyn = TRUE)$\"clusterData\"", sep ="")
         eval(parse(text = cluster_mt_cha))
         cluster_mt_cha <- paste("colnames(cluster_mt_", counter_mt, ")[6] = \"VAF\"",sep ="")
         eval(parse(text = cluster_mt_cha))
@@ -110,7 +113,7 @@ VAF_plot <-function(maf_file, sample_option = "OFA", theme_option = "aaas", file
         }
     }
     colnames(cluster_all)[6] = "VAF"
-    pic <- VAF_OFA(cluster_all, theme_option, tsb_ls, sample_option)
+    pic <- eval(parse(text = VAF_OFA(cluster_all, theme_option, tsb_ls, sample_option)))
     ggsave(pic, filename =  paste(patientID, "_VAF_Cluster",".", file_format, sep=""), width = 12, height = 9)
   } else {
   # specific sample
@@ -126,6 +129,7 @@ VAF_plot <-function(maf_file, sample_option = "OFA", theme_option = "aaas", file
 ########## Directory #######
 # maf_dir = "/home/ninomoriaty/R_Project/patients_snv_indel.imputed.maf"
 maf_file = "/home/ninomoriaty/R_Project/311252_snv_indel.imputed.maf"
-# sample_option = "311252-S"
-
+sample_option = "311252-S"
+theme_option = "aaas"
+file_format = "png"
 
