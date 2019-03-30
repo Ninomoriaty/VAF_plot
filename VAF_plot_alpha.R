@@ -44,7 +44,7 @@ VAF_vline <- function(cluster_mt, pic, tsb_ls, sample_option, tsb, ingredients =
     y_end <- density_info$y[which(density_info$x == x_end_alter)]
     if (sample_option == "OFA"){
       density <- density_info$density[which(density_info$x == x_end_alter)]
-      VAF_vline_cha <- paste(VAF_vline_cha, "geom_segment(data = cluster_mt_", which(tsb_ls == tsb)," ,aes(x = ", x_end_alter,", xend = ", x_end_alter, ", y = ", which(tsb_ls == tsb),", yend = ", which(tsb_ls == tsb) + y_end,"), size = 0.3, colour=\"cadetblue3\", linetype=\"dashed\") + ",sep="")
+      VAF_vline_cha <- paste(VAF_vline_cha, "geom_segment(data = cluster_mt_", which(tsb_ls == tsb)," ,aes(x = ", x_end_alter,", xend = ", x_end_alter, ", y = ", which(tsb_ls == tsb),", yend = ", which(tsb_ls == tsb) + density*iscale*scale,"), size = 0.3, colour=\"cadetblue3\", linetype=\"dashed\") + ",sep="")
     }else{
       VAF_vline_cha <- paste(VAF_vline_cha, "geom_segment(aes(x = ", x_end_alter,", xend = ", x_end_alter, ", y = 0, yend = ", y_end,"), size = 0.3, colour=\"cadetblue3\", linetype=\"dashed\") + ",sep="")
     }
@@ -93,7 +93,7 @@ VAF_plot <-function(maf_file, sample_option = "OFA", theme_option = "aaas", file
       sample_mt <- vaf_input_mt[which(vaf_input_mt$Samples %in% as.character(sample_name_mt)[counter_mt]),]
       cluster_mt = inferHeterogeneity(maf = laml, tsb = as.character(sample_mt[1,3]), vafCol = 'VAF', useSyn = TRUE)$"clusterData"
       colnames(cluster_mt)[6] = "VAF"
-      pic <- VAF_draw(cluster_mt, theme_option)
+      pic <- VAF_draw(cluster_mt, theme_option, sample_option)
       ggsave(pic, filename =  paste(as.character(sample_name_mt)[counter_mt], "_VAF_Cluster", ".", file_format,sep=""), width = 12, height = 9)
     }
   }
